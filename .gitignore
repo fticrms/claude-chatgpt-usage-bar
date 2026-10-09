@@ -1,0 +1,5 @@
+*.bak
+*.log
+*.zip
+AIusagebar-Claude-Retry.json
+.credentials.json
