@@ -39,7 +39,7 @@ Install location: `%LOCALAPPDATA%\AIusagebar` — you can delete the unzipped fo
 
 ## Uninstall
 
-Start menu → **AIusagebar 제거** (Uninstall AIusagebar), or double-click `Uninstall.cmd`.
+Start menu → **Uninstall AIusagebar**, or double-click `Uninstall.cmd`.
 Removes the install folder, shortcuts, autostart, position setting, and log. Your Claude / ChatGPT sign-ins are left untouched.
 
 ## How it works

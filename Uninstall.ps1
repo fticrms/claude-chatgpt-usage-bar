@@ -26,13 +26,16 @@ public static class UsageBarUninstallNative {
     $free = $false
     try {
         try { $free = $mutex.WaitOne(5000) } catch [Threading.AbandonedMutexException] { $free = $true }
-        if (-not $free) { throw '실행 중인 AIusagebar를 종료하지 못했습니다. 위젯을 우클릭해 Exit 후 다시 시도하세요.' }
+        if (-not $free) { throw 'Could not stop the running AIusagebar. Right-click the widget, choose Exit, and try again.' }
     } finally { if ($free) { $mutex.ReleaseMutex() }; $mutex.Dispose() }
     if ($StopOnly) { return }
 
     $programs = [Environment]::GetFolderPath('Programs')
     $startup = [Environment]::GetFolderPath('Startup')
-    foreach ($link in @((Join-Path $programs 'AIusagebar.lnk'), (Join-Path $programs 'AIusagebar 제거.lnk'), (Join-Path $startup 'AIusagebar.lnk'))) {
+    # 'AIusagebar *.lnk' also catches the uninstall shortcut from older (Korean-named) installs.
+    $links = @((Join-Path $programs 'AIusagebar.lnk'), (Join-Path $programs 'Uninstall AIusagebar.lnk'), (Join-Path $startup 'AIusagebar.lnk'))
+    $links += @(Get-ChildItem -LiteralPath $programs -Filter 'AIusagebar *.lnk' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    foreach ($link in $links) {
         if (Test-Path -LiteralPath $link) { Remove-Item -LiteralPath $link -Force }
     }
     if (Test-Path -LiteralPath $installed) { Remove-Item -LiteralPath $installed -Recurse -Force }
@@ -40,8 +43,8 @@ public static class UsageBarUninstallNative {
     foreach ($path in @((Join-Path $env:USERPROFILE '.ai-usage-bar'), (Join-Path $env:TEMP 'AIusagebar.log'), (Join-Path $env:TEMP 'AIusagebar-Claude-Retry.json'))) {
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
     }
-    Write-Host 'AIusagebar 제거 완료. (Claude / ChatGPT 로그인 정보는 그대로 유지됩니다.)'
+    Write-Host 'AIusagebar has been uninstalled. (Your Claude / ChatGPT sign-ins were left untouched.)'
 } catch {
-    Write-Host ('제거 실패: ' + $_.Exception.Message)
+    Write-Host ('Uninstall failed: ' + $_.Exception.Message)
     exit 1
 }
