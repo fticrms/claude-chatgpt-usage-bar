@@ -62,7 +62,7 @@ The Claude desktop app manages its own login and does not refresh `.credentials.
 
 ## macOS
 
-A native Swift/AppKit version lives in [`mac/`](mac). It opens a small window (not a menu-bar item) with the same two rows, refreshes every 2 minutes, and has a manual **Refresh** button. The UI and the guide (`mac/사용설명서.txt`) are in Korean.
+A native Swift/AppKit version lives in [`mac/`](mac). It opens a small window (not a menu-bar item) with the same two rows, refreshes every 2 minutes, and has a manual **Refresh** button. The UI, installer messages and the guide (`mac/GUIDE.txt`) are in both Korean and English.
 
 - **Supports:** macOS 12 or later (13+ recommended), Apple Silicon and Intel. The app is compiled on your own Mac for its CPU.
 - **Needs:** Apple Command Line Tools (the installer asks macOS to install them if missing; full Xcode is not needed).

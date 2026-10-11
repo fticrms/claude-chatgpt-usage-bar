@@ -1,3 +1,8 @@
+AI Usage Bar for Mac — 사용 안내 / User guide
+(한국어 먼저, English below)
+
+==================== 한국어 ====================
+
 AI Usage Bar 맥용 — 처음 사용하시는 분께
 
 가장 먼저 할 일
@@ -40,7 +45,7 @@ Claude:
 로그인 완료 후 앱에서 새로고침을 누르세요.
 매번 맥을 켤 때 다시 로그인하지 않아도 됩니다. 로그인이 만료/취소되면 재로그인하세요.
 
-기존 Windows 앱과 같은 원리인가요?
+Windows 버전과 같은 원리인가요?
 네. Codex는 codex app-server --stdio의 account/rateLimits/read에서
 10080분(7일) 주간 한도를 찾고, Claude는 /api/oauth/usage의 seven_day를 읽습니다.
 Claude 토큰이 만료되면 기존 앱처럼 OAuth 갱신 후 원래 저장소에 저장합니다.
@@ -93,3 +98,93 @@ Codex 로그인: https://developers.openai.com/codex/auth
 Codex 조회 방식: https://developers.openai.com/codex/app-server
 Claude Code 설치: https://code.claude.com/docs/en/setup
 Claude Code 인증: https://code.claude.com/docs/en/authentication
+
+==================== English ====================
+
+AI Usage Bar for Mac — getting started
+
+First steps
+1. Unzip and run Install.command → builds and installs the app, turns on autostart
+2. Run Setup-Login.command → installs the official Codex CLI / Claude Code and signs in
+3. Click Refresh in the AI Usage Bar window
+If you are already signed in to both CLIs, skip step 2.
+Tip: running the scripts from Terminal (bash path/to/Install.command) avoids the
+macOS warning shown when double-clicking an unsigned .command file.
+
+Which Macs?
+macOS 12 or later (13+ recommended). The app is compiled on your Mac for its CPU,
+so both Intel and Apple Silicon work. Needs internet and Apple Command Line Tools.
+This ZIP contains source and install scripts, not a prebuilt app.
+If the Apple tools are missing, an install window appears; run Install.command again afterwards.
+Full Xcode is not needed. macOS may ask for your password while installing the tools.
+App location: your home folder > Applications > AI Usage Bar.app
+
+How do I sign in?
+Everyone signs in once with their own accounts. There is no separate AI Usage Bar account.
+The package contains no passwords, sign-in files, tokens or cookies from anyone else.
+
+Codex:
+  Use step 1 of Setup-Login.command or the app's "Codex Login" button.
+  In Terminal: codex login
+  Sign in with your own ChatGPT account in the browser (not an API key).
+  Codex stores and renews the sign-in itself.
+
+Claude:
+  Use step 2 of Setup-Login.command or the app's "Claude Login" button.
+  In Terminal: claude auth login
+  Sign in with your own Claude subscription account that includes Claude Code.
+  This does not show API / Console billing.
+  On a Mac, the Claude Code sign-in is usually kept in the Keychain.
+  If AI Usage Bar asks for Keychain access, check the app name and allow it
+  (the Keychain password is usually your Mac login password).
+  A file-based sign-in (~/.claude/.credentials.json) is also supported.
+
+Being signed in to the ChatGPT/Claude website or desktop apps is not the same as the CLI sign-in.
+After signing in, click Refresh. You do not need to sign in again after every restart.
+
+How it works
+Codex: reads account/rateLimits/read from `codex app-server --stdio` and picks the
+10080-minute (7-day) weekly window. Claude: reads seven_day from /api/oauth/usage.
+If the Claude token has expired, the app renews it and saves it back to where it came from,
+re-checking the current sign-in first so it never overwrites a different login.
+If Claude Code renews at the same moment, you may need to sign in again.
+Refreshes every 2 minutes; on rate limits it honors Retry-After with exponential backoff.
+On temporary errors it keeps showing the last values and marks them as old.
+It never sends a prompt to any AI to check usage.
+The Codex limit is not your overall ChatGPT chat usage, and this is not an API billing tool.
+
+Starting and stopping
+The window opens automatically when you log in to the Mac, and refreshes after waking from sleep.
+Closing the window quits the app; open AI Usage Bar.app to show it again.
+Opening it again while it runs brings the existing window to the front.
+Disable-Autostart.command: turn off opening at login
+Enable-Autostart.command: turn it back on
+If macOS blocked it, check System Settings > General > Login Items.
+
+Troubleshooting
+"Permission denied": type /bin/bash and a space in Terminal, drag the .command file in, press Enter.
+CLI not installed: run Setup-Login.command, then reopen the app.
+Connection error: check the network, then Refresh.
+Rate limited: wait until the time shown; Refresh also respects the wait.
+No weekly data: check that the service provides a weekly limit for that account.
+Sign-ins are per macOS user account and shared with the CLIs.
+
+Tested / limitations
+Built, installed and autostart-registered on an Apple Silicon Mac. Intel Macs not tested yet.
+The installer runs a response-parsing self-test and stops if it fails.
+Supports the default Claude Code Keychain item (Claude Code-credentials);
+a separate CLAUDE_CONFIG_DIR Keychain item is not supported.
+nvm-style per-user PATHs are not searched; looks in ~/.local/bin, ~/.npm-global/bin,
+/opt/homebrew/bin, /usr/local/bin, etc.
+The Claude usage address is not a documented public API and may change.
+
+Uninstall
+Run Disable-Autostart.command and move AI Usage Bar.app to the Trash.
+This does not sign you out of the CLIs. On a shared Mac use codex logout / claude auth logout.
+
+Official docs
+Codex install: https://developers.openai.com/codex/cli
+Codex sign-in: https://developers.openai.com/codex/auth
+Codex app-server: https://developers.openai.com/codex/app-server
+Claude Code setup: https://code.claude.com/docs/en/setup
+Claude Code auth: https://code.claude.com/docs/en/authentication

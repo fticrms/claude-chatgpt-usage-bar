@@ -9,16 +9,16 @@ enum BarError: Error { case message(String) }
 func problem(_ text: String) -> BarError { .message(text) }
 func errorText(_ error: Error) -> String {
     if case BarError.message(let text) = error { return text }
-    return "연결 오류 — 네트워크/설치를 확인해 주세요"
+    return "연결 오류 — 네트워크/설치를 확인해 주세요 · Connection error — check network/install"
 }
 func json(_ data: Data) throws -> [String: Any] {
-    guard let value = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw problem("응답 형식 오류") }
+    guard let value = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw problem("응답 형식 오류 · Unexpected response") }
     return value
 }
 struct Usage { let percent: Double; let reset: Date? }
 func codexUsage(_ result: [String: Any]) throws -> Usage {
     let byID = result["rateLimitsByLimitId"] as? [String: Any]
-    guard let limits = (byID?["codex"] as? [String: Any]) ?? (result["rateLimits"] as? [String: Any]) else { throw problem("Codex 로그인/구독 확인 필요") }
+    guard let limits = (byID?["codex"] as? [String: Any]) ?? (result["rateLimits"] as? [String: Any]) else { throw problem("Codex 로그인/구독 확인 필요 · Check Codex sign-in/plan") }
     for name in ["primary", "secondary"] {
         if let window = limits[name] as? [String: Any],
            (window["windowDurationMins"] as? NSNumber)?.intValue == 10080,
@@ -26,10 +26,10 @@ func codexUsage(_ result: [String: Any]) throws -> Usage {
             return Usage(percent: min(100, max(0, percent.doubleValue)), reset: (window["resetsAt"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue) })
         }
     }
-    throw problem("이 계정에서 주간 사용량을 제공하지 않습니다")
+    throw problem("이 계정에서 주간 사용량을 제공하지 않습니다 · No weekly limit for this account")
 }
 func claudeUsage(_ result: [String: Any]) throws -> Usage {
-    guard let weekly = result["seven_day"] as? [String: Any], let percent = weekly["utilization"] as? NSNumber else { throw problem("이 계정에서 주간 사용량을 제공하지 않습니다") }
+    guard let weekly = result["seven_day"] as? [String: Any], let percent = weekly["utilization"] as? NSNumber else { throw problem("이 계정에서 주간 사용량을 제공하지 않습니다 · No weekly limit for this account") }
     var reset: Date?
     if let text = weekly["resets_at"] as? String {
         let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -86,25 +86,25 @@ final class CodexRPC {
                 guard !line.isEmpty else { continue }
                 let response = try json(line)
                 guard (response["id"] as? NSNumber)?.intValue == nextID else { continue }
-                if response["error"] != nil { throw problem("Codex 로그인/계정 확인 필요") }
+                if response["error"] != nil { throw problem("Codex 로그인/계정 확인 필요 · Check Codex sign-in") }
                 return response["result"] as? [String: Any] ?? [:]
             }
             var descriptor = pollfd(fd: output.fileHandleForReading.fileDescriptor, events: Int16(POLLIN), revents: 0)
             let status = poll(&descriptor, 1, 250)
-            if status < 0 { if errno == EINTR { continue }; throw problem("Codex 연결 오류") }
+            if status < 0 { if errno == EINTR { continue }; throw problem("Codex 연결 오류 · Codex connection error") }
             if status > 0 {
                 var buffer = [UInt8](repeating: 0, count: 8192)
                 let size = Darwin.read(descriptor.fd, &buffer, buffer.count)
-                if size <= 0 { throw problem("Codex 연결 종료 — 로그인/설치 확인 필요") }
+                if size <= 0 { throw problem("Codex 연결 종료 — 로그인/설치 확인 필요 · Codex exited — check sign-in/install") }
                 pending.append(contentsOf: buffer.prefix(size))
-                if pending.count > 2_000_000 { throw problem("Codex 응답 형식 오류") }
+                if pending.count > 2_000_000 { throw problem("Codex 응답 형식 오류 · Unexpected Codex response") }
             }
         }
-        throw problem("Codex 응답 시간 초과")
+        throw problem("Codex 응답 시간 초과 · Codex timed out")
     }
 }
 func readCodex() throws -> Usage {
-    guard let path = executable("codex") else { throw problem("Codex CLI 설치 필요 — 안내를 눌러 주세요") }
+    guard let path = executable("codex") else { throw problem("Codex CLI 설치 필요 — 안내를 눌러 주세요 · Codex CLI not installed — see Guide") }
     let rpc = try CodexRPC(path)
     _ = try rpc.request("initialize", ["clientInfo": ["name": "ai-usage-bar", "title": "AI Usage Bar", "version": "1.0.0"]])
     try rpc.send(["method": "initialized", "params": [:]])
@@ -125,9 +125,9 @@ func http(_ request: URLRequest) throws -> HTTPResult {
         }; semaphore.signal()
     }
     task.resume()
-    if semaphore.wait(timeout: .now() + 22) == .timedOut { task.cancel(); session.invalidateAndCancel(); throw problem("Claude 연결 시간 초과") }
+    if semaphore.wait(timeout: .now() + 22) == .timedOut { task.cancel(); session.invalidateAndCancel(); throw problem("Claude 연결 시간 초과 · Claude timed out") }
     session.finishTasksAndInvalidate()
-    guard let result = box.result else { throw problem("Claude 연결 오류") }; return result
+    guard let result = box.result else { throw problem("Claude 연결 오류 · Claude connection error") }; return result
 }
 struct Credential {
     var value: [String: Any]; let file: URL?
@@ -143,7 +143,7 @@ func credentials() throws -> Credential {
         ?? fm.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
     let file = root.appendingPathComponent(".credentials.json")
     if let data = try? Data(contentsOf: file), let value = try? json(data), value["claudeAiOauth"] != nil { return Credential(value: value, file: file) }
-    throw problem("Claude Code 로그인/키체인 접근 허용 필요")
+    throw problem("Claude Code 로그인/키체인 접근 허용 필요 · Sign in to Claude Code / allow Keychain access")
 }
 func saveCredentials(_ value: [String: Any], file: URL?) throws {
     let data = try JSONSerialization.data(withJSONObject: value)
@@ -152,14 +152,14 @@ func saveCredentials(_ value: [String: Any], file: URL?) throws {
     } else {
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "Claude Code-credentials"]
         let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if status != errSecSuccess { throw problem("키체인 갱신 실패 — Claude Code 재로그인 필요") }
+        if status != errSecSuccess { throw problem("키체인 갱신 실패 — Claude Code 재로그인 필요 · Keychain update failed — sign in to Claude Code again") }
     }
 }
 final class ClaudeClient {
     let defaults = UserDefaults.standard
     func checkCooldown() throws {
         let seconds = defaults.double(forKey: "claudeRetryUntil") - Date().timeIntervalSince1970
-        if seconds > 0 { throw problem("Claude 요청 제한 — \(Int(ceil(seconds / 60)))분 후 자동 재시도") }
+        if seconds > 0 { throw problem("Claude 요청 제한 — \(Int(ceil(seconds / 60)))분 후 자동 재시도 · Rate limited — retrying in \(Int(ceil(seconds / 60))) min") }
     }
     func throttle(_ reply: HTTPResult) -> BarError {
         let failures = min(5, defaults.integer(forKey: "claudeRetryFailures") + 1)
@@ -173,19 +173,19 @@ final class ClaudeClient {
             }
         }
         defaults.set(Date().timeIntervalSince1970 + delay, forKey: "claudeRetryUntil"); defaults.set(failures, forKey: "claudeRetryFailures")
-        return problem("Claude 요청 제한 — \(Int(ceil(delay / 60)))분 후 자동 재시도")
+        return problem("Claude 요청 제한 — \(Int(ceil(delay / 60)))분 후 자동 재시도 · Rate limited — retrying in \(Int(ceil(delay / 60))) min")
     }
     func token(force: Bool = false, rejected: String? = nil) throws -> String {
         let fd = Darwin.open(support.appendingPathComponent("claude-refresh.lock").path, O_CREAT | O_RDWR, mode_t(0o600))
-        guard fd >= 0 else { throw problem("Claude 인증 잠금 오류") }
+        guard fd >= 0 else { throw problem("Claude 인증 잠금 오류 · Claude auth lock error") }
         defer { _ = flock(fd, LOCK_UN); Darwin.close(fd) }
-        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { throw problem("Claude 인증 갱신 중") }
+        guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { throw problem("Claude 인증 갱신 중 · Renewing Claude sign-in") }
         let credential = try credentials()
-        guard let access = credential.oauth["accessToken"] as? String, !access.isEmpty else { throw problem("Claude Code 로그인 필요") }
+        guard let access = credential.oauth["accessToken"] as? String, !access.isEmpty else { throw problem("Claude Code 로그인 필요 · Sign in to Claude Code") }
         if force, let rejected = rejected, rejected != access { return access }
         let expires = (credential.oauth["expiresAt"] as? NSNumber)?.doubleValue ?? 0
         if !force && (expires == 0 || expires > Date().timeIntervalSince1970 * 1000 + 60_000) { return access }
-        guard let refresh = credential.oauth["refreshToken"] as? String, !refresh.isEmpty else { throw problem("Claude Code 재로그인 필요") }
+        guard let refresh = credential.oauth["refreshToken"] as? String, !refresh.isEmpty else { throw problem("Claude Code 재로그인 필요 · Sign in to Claude Code again") }
         try checkCooldown()
         var body: [String: Any] = ["grant_type": "refresh_token", "refresh_token": refresh, "client_id": "9d1c250a-e61b-44d9-88ed-5944d1962f5e"]
         if let scopes = credential.oauth["scopes"] as? [String], !scopes.isEmpty { body["scope"] = scopes.joined(separator: " ") }
@@ -197,14 +197,14 @@ final class ClaudeClient {
         guard reply.status == 200 else {
             let latest = try credentials()
             if let newer = latest.oauth["accessToken"] as? String, newer != access { return newer }
-            throw problem("Claude 인증 갱신 실패 — Claude Code 재로그인 필요")
+            throw problem("Claude 인증 갱신 실패 — Claude Code 재로그인 필요 · Renewal failed — sign in to Claude Code again")
         }
         let response = try json(reply.body)
         guard let newAccess = response["access_token"] as? String, !newAccess.isEmpty,
-              let lifetime = response["expires_in"] as? NSNumber, lifetime.doubleValue > 0 else { throw problem("Claude 인증 응답 오류") }
+              let lifetime = response["expires_in"] as? NSNumber, lifetime.doubleValue > 0 else { throw problem("Claude 인증 응답 오류 · Unexpected Claude auth response") }
         var latest = try credentials()
         if let newer = latest.oauth["accessToken"] as? String, newer != access { return newer }
-        guard latest.oauth["refreshToken"] as? String == refresh else { throw problem("Claude 로그인 변경됨 — 다시 새로고침해 주세요") }
+        guard latest.oauth["refreshToken"] as? String == refresh else { throw problem("Claude 로그인 변경됨 — 다시 새로고침해 주세요 · Sign-in changed — refresh again") }
         var oauth = latest.oauth
         oauth["accessToken"] = newAccess; oauth["expiresAt"] = (Date().timeIntervalSince1970 + lifetime.doubleValue) * 1000
         if let replacement = response["refresh_token"] as? String { oauth["refreshToken"] = replacement }
@@ -220,19 +220,19 @@ final class ClaudeClient {
             let reply = try http(request)
             if reply.status == 429 { throw throttle(reply) }
             if reply.status == 401 && attempt == 0 { access = try token(force: true, rejected: access); continue }
-            if reply.status == 401 || reply.status == 403 { throw problem("Claude Code 재로그인/구독 확인 필요") }
-            guard reply.status == 200 else { throw problem("Claude 연결 오류 (HTTP \(reply.status))") }
+            if reply.status == 401 || reply.status == 403 { throw problem("Claude Code 재로그인/구독 확인 필요 · Sign in again / check Claude plan") }
+            guard reply.status == 200 else { throw problem("Claude 연결 오류 · Claude error (HTTP \(reply.status))") }
             let usage = try claudeUsage(json(reply.body))
             defaults.set(0, forKey: "claudeRetryUntil"); defaults.set(0, forKey: "claudeRetryFailures"); return usage
         }
-        throw problem("Claude Code 재로그인 필요")
+        throw problem("Claude Code 재로그인 필요 · Sign in to Claude Code again")
     }
 }
 
 final class UsageRow {
     let stack = NSStackView(), bar = NSProgressIndicator()
-    let percent = NSTextField(labelWithString: "--% 사용 / 7일")
-    let detail = NSTextField(wrappingLabelWithString: "로그인을 확인하는 중…")
+    let percent = NSTextField(labelWithString: "--% 사용 used / 7일 7d")
+    let detail = NSTextField(wrappingLabelWithString: "로그인을 확인하는 중… · Checking sign-in…")
     var last: Usage?
     init(_ title: String) {
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
@@ -242,42 +242,42 @@ final class UsageRow {
         bar.isIndeterminate = false; bar.minValue = 0; bar.maxValue = 100; bar.style = .bar
         let views: [NSView] = [heading, percent, bar, detail]
         for view in views { stack.addArrangedSubview(view) }
-        bar.widthAnchor.constraint(equalToConstant: 430).isActive = true
-        detail.widthAnchor.constraint(equalToConstant: 430).isActive = true
+        bar.widthAnchor.constraint(equalToConstant: 540).isActive = true
+        detail.widthAnchor.constraint(equalToConstant: 540).isActive = true
     }
     func update(_ result: Result<Usage, Error>) {
         switch result {
         case .success(let value):
-            last = value; bar.doubleValue = value.percent; percent.stringValue = "\(Int(value.percent.rounded()))% 사용 / 7일"
+            last = value; bar.doubleValue = value.percent; percent.stringValue = "\(Int(value.percent.rounded()))% 사용 used / 7일 7d"
             percent.textColor = value.percent >= 90 ? .systemRed : value.percent >= 70 ? .systemOrange : .labelColor
             let formatter = DateFormatter(); formatter.dateFormat = "MM/dd HH:mm"
-            detail.stringValue = "초기화: " + (value.reset.map { formatter.string(from: $0) } ?? "정보 없음")
+            detail.stringValue = "초기화 Resets: " + (value.reset.map { formatter.string(from: $0) } ?? "정보 없음 · unknown")
         case .failure(let error):
-            if last == nil { percent.stringValue = "--% 사용 / 7일"; bar.doubleValue = 0 }
+            if last == nil { percent.stringValue = "--% 사용 used / 7일 7d"; bar.doubleValue = 0 }
             percent.textColor = .secondaryLabelColor
-            detail.stringValue = errorText(error) + (last == nil ? "" : "\n이전 조회 결과를 표시 중입니다")
+            detail.stringValue = errorText(error) + (last == nil ? "" : "\n이전 조회 결과를 표시 중입니다 · Showing last known values")
         }
     }
 }
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
-    let codex = UsageRow("ChatGPT · Codex"), claude = UsageRow("Claude · 전체 모델")
-    let status = NSTextField(labelWithString: "2분마다 자동 새로고침")
-    let refresh = NSButton(title: "새로고침", target: nil, action: nil)
+    let codex = UsageRow("ChatGPT · Codex"), claude = UsageRow("Claude · 전체 모델 All models")
+    let status = NSTextField(labelWithString: "2분마다 자동 새로고침 · Auto-refresh every 2 min")
+    let refresh = NSButton(title: "새로고침 Refresh", target: nil, action: nil)
     let client = ClaudeClient()
     var timer: Timer?, busy = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         let menu = NSMenu(), root = NSMenuItem(); menu.addItem(root)
-        let appMenu = NSMenu(); appMenu.addItem(withTitle: "AI Usage Bar 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let appMenu = NSMenu(); appMenu.addItem(withTitle: "AI Usage Bar 종료 Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         root.submenu = appMenu; NSApp.mainMenu = menu
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 490, height: 470), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 600), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "AI Usage Bar"; window.isReleasedWhenClosed = false; window.center(); window.setFrameAutosaveName("AIusagebarMainWindow")
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 20
-        let title = NSTextField(labelWithString: "이번 주 AI 사용량"); title.font = .boldSystemFont(ofSize: 21)
+        let title = NSTextField(labelWithString: "이번 주 AI 사용량 · Weekly AI usage"); title.font = .boldSystemFont(ofSize: 21)
         stack.addArrangedSubview(title); stack.addArrangedSubview(codex.stack); stack.addArrangedSubview(claude.stack)
         let buttons = NSStackView(); buttons.orientation = .horizontal; buttons.spacing = 8
         refresh.target = self; refresh.action = #selector(update); buttons.addArrangedSubview(refresh)
-        for (label, action) in [("Codex 로그인", #selector(loginCodex)), ("Claude 로그인", #selector(loginClaude)), ("안내", #selector(help))] { buttons.addArrangedSubview(NSButton(title: label, target: self, action: action)) }
+        for (label, action) in [("Codex 로그인 Login", #selector(loginCodex)), ("Claude 로그인 Login", #selector(loginClaude)), ("안내 Guide", #selector(help))] { buttons.addArrangedSubview(NSButton(title: label, target: self, action: action)) }
         stack.addArrangedSubview(buttons); status.font = .systemFont(ofSize: 11); status.textColor = .secondaryLabelColor; stack.addArrangedSubview(status)
         window.contentView!.addSubview(stack); stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 28), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -28), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 24)])
@@ -286,29 +286,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(update), name: NSWorkspace.didWakeNotification, object: nil); update()
     }
     @objc func update() {
-        guard !busy else { return }; busy = true; refresh.isEnabled = false; status.stringValue = "사용량 조회 중…"
+        guard !busy else { return }; busy = true; refresh.isEnabled = false; status.stringValue = "사용량 조회 중… · Checking usage…"
         DispatchQueue.global(qos: .utility).async {
             let a = Result { try readCodex() }; DispatchQueue.main.async { self.codex.update(a) }
             let b = Result { try self.client.usage() }
             DispatchQueue.main.async {
                 self.claude.update(b); self.busy = false; self.refresh.isEnabled = true
                 let formatter = DateFormatter(); formatter.dateFormat = "HH:mm:ss"
-                self.status.stringValue = "조회 완료 \(formatter.string(from: Date())) · 2분마다 자동 새로고침"
+                self.status.stringValue = "조회 완료 Updated \(formatter.string(from: Date())) · 2분마다 자동 새로고침 Auto-refresh every 2 min"
             }
         }
     }
     func login(_ name: String, arguments: String) {
         guard let path = executable(name) else { help(); return }
         func quote(_ text: String) -> String { "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-        let script = "#!/bin/bash\nexport PATH=\(quote(environment()["PATH"]!))\ncd \"$HOME\"\nunset OPENAI_API_KEY ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN\n\(quote(path)) \(arguments)\necho '\n로그인 후 AI Usage Bar에서 새로고침을 눌러 주세요.'\nread -r -p 'Enter를 누르면 종료합니다.'\n"
+        let script = "#!/bin/bash\nexport PATH=\(quote(environment()["PATH"]!))\ncd \"$HOME\"\nunset OPENAI_API_KEY ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN\n\(quote(path)) \(arguments)\necho '\n로그인 후 AI Usage Bar에서 새로고침을 눌러 주세요. / After signing in, click Refresh in AI Usage Bar.'\nread -r -p 'Enter를 누르면 종료합니다. / Press Enter to close.'\n"
         let url = support.appendingPathComponent("\(name)-login.command")
         do { try script.write(to: url, atomically: true, encoding: .utf8); try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path); NSWorkspace.shared.open(url) }
-        catch { let alert = NSAlert(); alert.messageText = "로그인 창 열기 실패"; alert.informativeText = "사용설명서의 터미널 명령을 이용해 주세요."; alert.runModal() }
+        catch { let alert = NSAlert(); alert.messageText = "로그인 창 열기 실패 · Could not open sign-in"; alert.informativeText = "GUIDE.txt의 터미널 명령을 이용해 주세요. · Use the Terminal commands in GUIDE.txt."; alert.runModal() }
     }
     @objc func loginCodex() { login("codex", arguments: "login") }
     @objc func loginClaude() { login("claude", arguments: "auth login") }
     @objc func help() {
-        if let url = Bundle.main.url(forResource: "사용설명서", withExtension: "txt") { NSWorkspace.shared.open(url) }
+        if let url = Bundle.main.url(forResource: "GUIDE", withExtension: "txt") { NSWorkspace.shared.open(url) }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { window.makeKeyAndOrderFront(nil); return true }

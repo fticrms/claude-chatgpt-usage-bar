@@ -2,7 +2,7 @@
 set -euo pipefail
 agent_path="$HOME/Library/LaunchAgents/local.aiusagebar.mac.plist"
 target_app="$HOME/Applications/AI Usage Bar.app"
-if [[ ! -d "$target_app" ]]; then echo 'Install.command로 앱부터 설치해 주세요.'; exit 1; fi
+if [[ ! -d "$target_app" ]]; then echo 'Install.command로 앱부터 설치해 주세요. / Install the app with Install.command first.'; exit 1; fi
 mkdir -p "$HOME/Library/LaunchAgents"
 # Build structured plist values: paths with spaces or XML characters remain valid.
 agent_stage="$(mktemp "${TMPDIR:-/tmp}/aiusagebar-agent.XXXXXX")"
@@ -18,4 +18,4 @@ chmod 600 "$agent_stage"
 /bin/launchctl bootout "gui/$(id -u)/local.aiusagebar.mac" >/dev/null 2>&1 || true
 mv "$agent_stage" "$agent_path"
 /bin/launchctl bootstrap "gui/$(id -u)" "$agent_path"
-if [[ "${1:-}" != --quiet ]]; then echo '로그인 시 자동 실행이 켜졌습니다.'; read -r -p 'Enter를 누르면 닫습니다.'; fi
+if [[ "${1:-}" != --quiet ]]; then echo '로그인 시 자동 실행이 켜졌습니다. / Autostart at login is on.'; read -r -p 'Enter를 누르면 닫습니다. / Press Enter to close.'; fi
