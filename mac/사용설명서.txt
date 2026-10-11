@@ -1,0 +1,95 @@
+AI Usage Bar 맥용 — 처음 사용하시는 분께
+
+가장 먼저 할 일
+1. ZIP을 풀고 Install.command 실행 → 앱 설치와 자동 실행 등록
+2. Setup-Login.command 실행 → 공식 Codex/Claude Code CLI 설치와 계정 로그인
+3. AI Usage Bar 창에서 새로고침 누르기
+이미 CLI에 로그인되어 있으면 2번은 생략해도 됩니다.
+
+어떤 맥에서 되나요?
+macOS 13 이상 권장. Intel 맥과 Apple Silicon 맥에서 각 맥에 맞게 앱을 만듭니다.
+인터넷과 Apple Command Line Tools가 필요합니다.
+이 ZIP은 미리 빌드한 앱이 아니라 맥에서 앱을 만드는 소스/설치 패키지입니다.
+Apple 도구가 없으면 설치 창이 나타납니다. 도구 설치 후 Install.command를 다시 실행하세요.
+앱 설치에는 전체 Xcode가 필요하지 않습니다. Apple 도구 설치 시 macOS가 암호를 물을 수 있습니다.
+앱 설치 위치: 내 사용자 폴더 > Applications > AI Usage Bar.app
+
+로그인은 어떻게 하나요?
+받는 분이 자신의 계정으로 각각 한 번 로그인합니다. AI Usage Bar 별도 가입은 없습니다.
+ZIP에는 보낸 사람의 비밀번호, 로그인 파일, 토큰, 쿠키가 전혀 들어 있지 않습니다.
+
+Codex:
+  Setup-Login.command의 첫 단계 또는 앱의 'Codex 로그인' 버튼을 사용하세요.
+  터미널에서 직접 하려면: codex login
+  브라우저가 열리면 본인의 ChatGPT 계정으로 로그인하고 승인을 완료하세요.
+  API 키 로그인 대신 ChatGPT 계정 로그인을 사용하세요.
+  인증 저장/갱신은 Codex가 관리합니다.
+
+Claude:
+  Setup-Login.command의 두 번째 단계 또는 앱의 'Claude 로그인' 버튼을 사용하세요.
+  터미널에서 직접 하려면: claude auth login
+  브라우저에서 본인의 Claude 구독 계정으로 로그인하고 승인을 완료하세요.
+  Claude Code에 접근 가능한 구독 계정이 필요합니다.
+  API 키/Console 결제 계정의 사용 금액을 조회하는 용도가 아닙니다.
+  맥에서는 Claude Code 로그인 정보가 보통 암호화된 키체인에 저장됩니다.
+  AI Usage Bar가 키체인 접근을 요청하면 앱 이름을 확인하고 허용하세요.
+  키체인 암호는 보통 맥 로그인 암호입니다.
+  키체인 대신 파일에 저장된 기본 로그인도 지원합니다.
+
+웹 브라우저나 ChatGPT/Claude 데스크톱 앱에만 로그인한 것과 CLI 로그인은 다를 수 있습니다.
+로그인 완료 후 앱에서 새로고침을 누르세요.
+매번 맥을 켤 때 다시 로그인하지 않아도 됩니다. 로그인이 만료/취소되면 재로그인하세요.
+
+기존 Windows 앱과 같은 원리인가요?
+네. Codex는 codex app-server --stdio의 account/rateLimits/read에서
+10080분(7일) 주간 한도를 찾고, Claude는 /api/oauth/usage의 seven_day를 읽습니다.
+Claude 토큰이 만료되면 기존 앱처럼 OAuth 갱신 후 원래 저장소에 저장합니다.
+다른 로그인을 덮어쓰지 않도록 저장 직전에 현재 인증을 다시 확인합니다.
+Claude Code와 동시에 인증을 갱신하는 경우에는 재로그인이 필요할 수 있습니다.
+2분마다 갱신하고, 요청 제한 응답에서는 Retry-After와 지수형 대기를 지킵니다.
+임시 오류가 생기면 이전 사용량임을 표시합니다.
+사용량 확인을 위해 AI에게 질문을 보내지 않습니다.
+Codex 한도는 일반 ChatGPT 채팅 전체의 사용량과 같지 않습니다.
+API 결제 금액을 보여 주는 앱도 아닙니다.
+
+맥을 켜고 끌 때
+설치하면 사용자 로그인 시 별도 창이 자동으로 열립니다.
+전원을 끄면 종료되고, 다음 부팅 후 로그인하면 다시 열립니다.
+잠자기에서 깨면 실행 중인 앱의 데이터를 새로고침합니다.
+창을 닫으면 앱이 종료됩니다. 다시 보려면 AI Usage Bar.app을 여세요.
+중복 실행은 기존 창을 앞으로 가져옵니다.
+Disable-Autostart.command: 로그인 시 자동 실행 끄기
+Enable-Autostart.command: 자동 실행 다시 켜기
+macOS가 차단했다면 시스템 설정 > 일반 > 로그인 항목에서 확인하세요.
+
+실행이 안 될 때
+실행 권한이 없다는 오류가 나오면 터미널에 /bin/bash 를 입력하고 공백 한 칸을 둔 뒤,
+실행하려는 .command 파일을 Finder에서 터미널로 끌어 놓고 Enter를 누르세요.
+다운로드 보호 알림이 나오면 시스템 설정 > 개인정보 보호 및 보안에서
+실행하려는 파일을 확인한 뒤 macOS가 제공하는 열기 절차를 따르세요.
+CLI 설치 필요: Setup-Login.command를 실행한 뒤 앱을 다시 여세요.
+연결 오류: 네트워크 확인 후 새로고침
+요청 제한: 표시된 시간까지 기다리세요. 새로고침도 대기 시간을 지킵니다.
+주간 데이터 없음: 서비스가 그 계정에 주간 사용량을 제공하는지 확인하세요.
+각 서비스 로그인은 공유된 맥 사용자 계정의 CLI 로그인에도 영향을 줍니다.
+
+검증 범위 및 제약
+Apple Silicon 맥에서 빌드·설치·자동 실행 등록을 확인했습니다. Intel 맥은 아직 검증하지 못했습니다.
+설치 시 사용량 응답 해석 자체 검사가 실행되고 실패하면 설치를 중단합니다.
+현재 기본 Claude Code 키체인 항목(Claude Code-credentials)을 지원합니다.
+별도 CLAUDE_CONFIG_DIR의 키체인 항목은 미지원입니다.
+로그인 셸의 nvm 등 사용자별 PATH는 자동 탐색하지 않습니다.
+기본 ~/.local/bin, ~/.npm-global/bin, /opt/homebrew/bin, /usr/local/bin 등을 찾습니다.
+Claude 사용량 조회 주소는 공개적으로 보장된 정식 API가 아니므로 서비스 변경에 영향을 받습니다.
+
+제거하기
+Disable-Autostart.command를 실행하고 AI Usage Bar.app을 휴지통으로 옮기세요.
+앱 제거는 CLI의 로그인을 지우지 않습니다.
+공용 맥에서는 각각 codex logout / claude auth logout 으로 로그아웃하세요.
+
+공식 안내
+Codex 설치: https://developers.openai.com/codex/cli
+Codex 로그인: https://developers.openai.com/codex/auth
+Codex 조회 방식: https://developers.openai.com/codex/app-server
+Claude Code 설치: https://code.claude.com/docs/en/setup
+Claude Code 인증: https://code.claude.com/docs/en/authentication

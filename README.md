@@ -1,6 +1,6 @@
 # AIusagebar
 
-A small Windows widget that sits on your taskbar and shows your weekly (7-day) usage for **Claude** and **ChatGPT (Codex)**.
+A small Windows widget (plus a [macOS version](#macos)) that sits on your taskbar and shows your weekly (7-day) usage for **Claude** and **ChatGPT (Codex)**.
 
 ```
 ChatGPT  ■■■□□□□□   29% used / 7d   10-14 14:43
@@ -59,6 +59,39 @@ Removes the install folder, shortcuts, autostart, position setting, and log. You
 The Claude desktop app manages its own login and does not refresh `.credentials.json`. The token in that file expires after about 8 hours, so right after boot it was usually expired; the widget then tried to refresh it on its own, failed, and got stuck in a cooldown.
 
 `Run-Widget.ps1` now checks the token before starting the widget and, if it has expired, renews it once using the installed Claude Code CLI (retrying up to 3 times, since the network may not be ready right after sign-in).
+
+## macOS
+
+A native Swift/AppKit version lives in [`mac/`](mac). It opens a small window (not a menu-bar item) with the same two rows, refreshes every 2 minutes, and has a manual **Refresh** button. The UI and the guide (`mac/사용설명서.txt`) are in Korean.
+
+- **Supports:** macOS 12 or later (13+ recommended), Apple Silicon and Intel. The app is compiled on your own Mac for its CPU.
+- **Needs:** Apple Command Line Tools (the installer asks macOS to install them if missing; full Xcode is not needed).
+- Built and installed on an Apple Silicon Mac; Intel Macs have not been tested yet.
+
+### Install (macOS)
+
+1. Download the ZIP (**Code → Download ZIP**) and unzip it.
+2. In Terminal, run:
+   ```
+   bash ~/Downloads/claude-chatgpt-usage-bar-main/mac/Install.command
+   ```
+   It builds `AI Usage Bar.app`, runs a parsing self-test, installs to `~/Applications`, registers a LaunchAgent so the window opens at login, and opens the app.
+3. Sign in with your own accounts (only once):
+   ```
+   bash ~/Downloads/claude-chatgpt-usage-bar-main/mac/Setup-Login.command
+   ```
+   It installs the official Codex CLI / Claude Code if they are missing, then runs `codex login` (ChatGPT account) and `claude auth login` (Claude subscription).
+4. Click **Refresh** in the app. If macOS asks for Keychain access to `Claude Code-credentials`, allow it.
+
+Running the scripts with `bash` from Terminal avoids the Gatekeeper warning you get when double-clicking an unsigned `.command` file.
+
+| Action | How |
+|---|---|
+| Turn off autostart | `bash mac/Disable-Autostart.command` |
+| Turn autostart back on | `bash mac/Enable-Autostart.command` |
+| Uninstall | Disable autostart, then move `~/Applications/AI Usage Bar.app` to the Trash |
+
+Launching it again brings the existing window to the front, and it refreshes after the Mac wakes from sleep. When a request is rate-limited it honors `Retry-After`; when a refresh fails it keeps showing the last values and says they are stale.
 
 ## Notes
 
