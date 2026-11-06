@@ -11,6 +11,7 @@ Claude   ■□□□□□□□    8% used / 7d   10-13 18:00
 - Resizes to fit the taskbar; drag to move
 - Hides automatically while a full-screen app (game, video) is in front
 - Starts automatically when you sign in to Windows
+- Opens a Claude sign-in window by itself when a new sign-in is needed
 
 ## Requirements
 
@@ -36,6 +37,8 @@ Install location: `%LOCALAPPDATA%\AIusagebar` — you can delete the unzipped fo
 | Start | Start menu → **AIusagebar** |
 | Move | Drag the widget |
 | Refresh / Details / Exit | Right-click the widget → Refresh now / Details / Exit |
+| Sign in to Claude now | Right-click the widget → **Claude login...** |
+| Open the install folder | Right-click the widget → **Open file location** |
 
 ## Uninstall
 
@@ -48,6 +51,7 @@ Removes the install folder, shortcuts, autostart, position setting, and log. You
 |---|---|
 | `AIusagebar.ps1` | The widget itself (WinForms) |
 | `Run-Widget.ps1` | Renews the Claude login if needed, then starts the widget |
+| `ClaudeLogin.ps1` | Finds the Claude Code CLI, renews the login, and opens a sign-in window when a new sign-in is needed |
 | `Start AIusagebar.vbs` / `.cmd` | Launch hidden, without a console window |
 | `Install.ps1` / `Uninstall.ps1` | Install / uninstall |
 
@@ -59,6 +63,12 @@ Removes the install folder, shortcuts, autostart, position setting, and log. You
 The Claude desktop app manages its own login and does not refresh `.credentials.json`. The token in that file expires after about 8 hours, so right after boot it was usually expired; the widget then tried to refresh it on its own, failed, and got stuck in a cooldown.
 
 `Run-Widget.ps1` now checks the token before starting the widget and, if it has expired, renews it once using the installed Claude Code CLI (retrying up to 3 times, since the network may not be ready right after sign-in).
+
+### When a new sign-in is really needed
+
+The access token is renewed automatically, but the refresh token behind it expires after roughly a month, and the login file can also end up empty. When the widget sees that only a new sign-in can help, it hands over to `ClaudeLogin.ps1`, which opens `claude auth login` in its own window (the CLI opens your browser; you only approve). It asks at most once every 30 minutes, never while a full-screen app is in front, and you can trigger it any time from the right-click menu.
+
+The CLI is looked up in the Claude desktop app's data folder (Store and older installs) and in the VS Code extension, so it keeps working when the app updates and moves it.
 
 ## macOS
 
@@ -101,7 +111,7 @@ Launching it again brings the existing window to the front, and it refreshes aft
 
 ## Troubleshooting
 
-- Claude row shows `Claude login` → sign in to Claude Code again, then right-click the widget → Refresh now
+- Claude row shows `Claude login` → a sign-in window opens automatically; approve it in the browser (or right-click the widget → **Claude login...**)
 - ChatGPT row shows `codex login` → sign in to Codex / the ChatGPT app again
 - Anything else: check `%TEMP%\AIusagebar.log`
 

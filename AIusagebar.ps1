@@ -223,7 +223,7 @@ foreach ($row in $allRows) { $row.Label.ForeColor = $row.BrandColor; $row.Fill.B
 
 $tooltip = New-Object System.Windows.Forms.ToolTip; $tooltip.AutoPopDelay = 12000; $tooltip.InitialDelay = 300
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-$refreshItem = $menu.Items.Add("Refresh now"); $detailsItem = $menu.Items.Add("Details"); $menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null; $exitItem = $menu.Items.Add("Exit")
+$refreshItem = $menu.Items.Add("Refresh now"); $loginItem = $menu.Items.Add("Claude login..."); $folderItem = $menu.Items.Add("Open file location"); $detailsItem = $menu.Items.Add("Details"); $menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null; $exitItem = $menu.Items.Add("Exit")
 $form.ContextMenuStrip = $menu
 
 function Update-BarLayout($Rect) {
@@ -290,6 +290,9 @@ function Test-FullscreenForeground {
     if ($fg -eq [IntPtr]::Zero -or $fg -eq $form.Handle) { return $false }
     $rect = New-Object CodexBarRect
     if (-not [CodexBarNative]::GetWindowRect($fg, [ref]$rect)) { return $false }
+    # A maximized normal window keeps its title bar (WS_CAPTION); a real full-screen game or
+    # video does not. With the taskbar set to auto-hide, maximized windows are screen-sized too.
+    if (([CodexBarNative]::GetWindowLong($fg, -16) -band 0x00C00000) -eq 0x00C00000) { return $false }
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
     return (($rect.Right - $rect.Left) -ge $screen.Width -and ($rect.Bottom - $rect.Top) -ge $screen.Height)
 }
@@ -476,6 +479,23 @@ function Write-UsageStatus([string]$Message) {
         [IO.File]::AppendAllText($script:logPath, ([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss')+' v'+$script:version+' '+$Message+"`r`n"))
     } catch {}
 }
+function Request-ClaudeLogin([switch]$Force) {
+    # Hand the sign-in to a hidden helper so the widget never freezes. It renews the login
+    # when it can and otherwise opens a sign-in window; it also rate-limits itself.
+    if ($SmokeTest -or ($script:loginHelper -and -not $script:loginHelper.HasExited)) { return }
+    $helper = Join-Path $PSScriptRoot 'ClaudeLogin.ps1'
+    if (-not (Test-Path -LiteralPath $helper)) { return }
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    if (-not $Force) {
+        if (($now - $script:lastLoginRequest) -lt 600 -or (Test-FullscreenForeground)) { return }
+    }
+    $script:lastLoginRequest = $now
+    $options = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $helper + '"' + $(if ($Force) { ' -Force' } else { '' })
+    try {
+        $script:loginHelper = Start-Process -FilePath (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList $options -WindowStyle Hidden -PassThru
+        Write-UsageStatus ('CLAUDE_LOGIN_REQUESTED force=' + [bool]$Force)
+    } catch { Write-UsageStatus 'CLAUDE_LOGIN_REQUEST_FAILED' }
+}
 function Update-Usage {
     if ($script:refreshing) { return }
     $script:refreshing = $true
@@ -534,7 +554,11 @@ function Update-Usage {
                 $lines += "Claude server request limit: automatic retry after $resume. Refresh now also respects this wait."
                 $rowClaude.Reset.ForeColor = $CodexAmber
             }
-            if ($_.Exception.Message -eq 'CLAUDE_LOGIN') { $lines += 'Open Claude Code to refresh login; sign in again if needed.' }
+            if ($_.Exception.Message -eq 'CLAUDE_LOGIN') {
+                $lines += 'Claude needs a new sign-in. A sign-in window opens automatically (at most every 30 minutes).'
+                $lines += 'To open it now: right-click the widget > Claude login...'
+                Request-ClaudeLogin
+            }
         }
         Write-UsageStatus "REFRESH_COMPLETED"
         $script:lastTip = $lines -join "`n"
@@ -546,6 +570,12 @@ function Update-Usage {
 $timer = New-Object System.Windows.Forms.Timer; $timer.Interval = ($script:refreshSeconds * 1000); $timer.Add_Tick({ Update-Usage })
 $keeper = New-Object System.Windows.Forms.Timer; $keeper.Interval = 3000
 $keeper.Add_Tick({
+    if ($script:loginHelper -and $script:loginHelper.HasExited) {
+        # Exit code 10 means the login is valid again; show it right away.
+        $renewed = ($script:loginHelper.ExitCode -eq 10)
+        $script:loginHelper = $null
+        if ($renewed -and -not $script:refreshing) { Update-Usage }
+    }
     if ($script:claudeWaiting) {
         $rowClaude.Reset.Text = Get-ClaudeRetryMessage
         if ((Get-ClaudeRetrySeconds) -eq 0 -and -not $script:refreshing) { Update-Usage }
@@ -555,6 +585,9 @@ $keeper.Add_Tick({
     Set-BarPosition; Assert-TopMost
 })
 $refreshItem.Add_Click({ Update-Usage })
+$loginItem.Add_Click({ Request-ClaudeLogin -Force })
+$script:appDir = $PSScriptRoot
+$folderItem.Add_Click({ try { Start-Process -FilePath (Join-Path $env:WINDIR 'explorer.exe') -ArgumentList ('/select,"' + (Join-Path $script:appDir 'AIusagebar.ps1') + '"') } catch {} })
 $detailsItem.Add_Click({ [System.Windows.Forms.MessageBox]::Show($(if($script:lastTip){$script:lastTip}else{"No data yet."}), "AIusagebar $($script:version)") | Out-Null })
 $exitItem.Add_Click({ $form.Close() })
 

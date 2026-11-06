@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $installed = Join-Path $env:LOCALAPPDATA 'AIusagebar'
-$files = @('AIusagebar.ps1', 'Run-Widget.ps1', 'Start AIusagebar.vbs', 'Start AIusagebar.cmd', 'Uninstall.ps1')
+$files = @('AIusagebar.ps1', 'Run-Widget.ps1', 'ClaudeLogin.ps1', 'Start AIusagebar.vbs', 'Start AIusagebar.cmd', 'Uninstall.ps1')
 try {
     foreach ($name in $files) { if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot $name))) { throw "Missing package file: $name (unzip the package first)" } }
     $t = $null; $e = $null

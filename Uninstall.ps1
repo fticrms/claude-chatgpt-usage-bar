@@ -40,7 +40,7 @@ public static class UsageBarUninstallNative {
     }
     if (Test-Path -LiteralPath $installed) { Remove-Item -LiteralPath $installed -Recurse -Force }
     # Widget position, log and Claude retry state. Claude/Codex logins are left alone.
-    foreach ($path in @((Join-Path $env:USERPROFILE '.ai-usage-bar'), (Join-Path $env:TEMP 'AIusagebar.log'), (Join-Path $env:TEMP 'AIusagebar-Claude-Retry.json'))) {
+    foreach ($path in @((Join-Path $env:USERPROFILE '.ai-usage-bar'), (Join-Path $env:TEMP 'AIusagebar.log'), (Join-Path $env:TEMP 'AIusagebar-Claude-Retry.json'), (Join-Path $env:TEMP 'AIusagebar-Claude-Login.json'))) {
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
     }
     Write-Host 'AIusagebar has been uninstalled. (Your Claude / ChatGPT sign-ins were left untouched.)'
